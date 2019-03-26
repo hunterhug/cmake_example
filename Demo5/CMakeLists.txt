@@ -21,6 +21,8 @@ if (USE_MYMATH)
   include_directories ("${PROJECT_SOURCE_DIR}/math")
   add_subdirectory (math)
   set (EXTRA_LIBS ${EXTRA_LIBS} MathFunctions)
+else ()
+  set (EXTRA_LIBS ${EXTRA_LIBS} m)
 endif (USE_MYMATH)
 
 # 查找当前目录下的所有源文件
@@ -28,11 +30,11 @@ endif (USE_MYMATH)
 aux_source_directory(. DIR_SRCS)
 
 # 指定生成目标
-add_executable(Demo ${DIR_SRCS})
-target_link_libraries (Demo  ${EXTRA_LIBS})
+add_executable(main ${DIR_SRCS})
+target_link_libraries (main  ${EXTRA_LIBS})
 
 # 指定安装路径
-install (TARGETS Demo DESTINATION bin)
+install (TARGETS main DESTINATION bin)
 install (FILES "${PROJECT_BINARY_DIR}/config.h"
          DESTINATION include)
 
@@ -40,34 +42,34 @@ install (FILES "${PROJECT_BINARY_DIR}/config.h"
 enable_testing()
 
 # 测试程序是否成功运行
-add_test (test_run Demo 5 2)
+add_test (test_run main 5 2)
 
 # 测试帮助信息是否可以正常提示
-add_test (test_usage Demo)
+add_test (test_usage main)
 set_tests_properties (test_usage
   PROPERTIES PASS_REGULAR_EXPRESSION "Usage: .* base exponent")
 
 # 测试 5 的平方
-# add_test (test_5_2 Demo 5 2)
+# add_test (test_5_2 main 5 2)
 
 # set_tests_properties (test_5_2
 #  PROPERTIES PASS_REGULAR_EXPRESSION "is 25")
 
 # 测试 10 的 5 次方
-# add_test (test_10_5 Demo 10 5)
+# add_test (test_10_5 main 10 5)
 
 # set_tests_properties (test_10_5
 #  PROPERTIES PASS_REGULAR_EXPRESSION "is 100000")
 
 # 测试 2 的 10 次方
-# add_test (test_2_10 Demo 2 10)
+# add_test (test_2_10 main 2 10)
 
 # set_tests_properties (test_2_10
 #  PROPERTIES PASS_REGULAR_EXPRESSION "is 1024")
 
 # 定义一个宏，用来简化测试工作
 macro (do_test arg1 arg2 result)
-  add_test (test_${arg1}_${arg2} Demo ${arg1} ${arg2})
+  add_test (test_${arg1}_${arg2} main ${arg1} ${arg2})
   set_tests_properties (test_${arg1}_${arg2}
     PROPERTIES PASS_REGULAR_EXPRESSION ${result})
 endmacro (do_test)

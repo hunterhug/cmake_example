@@ -131,7 +131,7 @@ cd Demo1
 
 计算指数乘方的 main.c:
 
-```
+```cgo
 #include <stdio.h>
 #include <stdlib.h>
 /**
@@ -213,7 +213,7 @@ cd Demo2
 
 main.c:
 
-```
+```cgo
 #include <stdio.h>
 #include <stdlib.h>
 #include "MathFunctions.h"
@@ -234,7 +234,7 @@ int main(int argc, char *argv[])
 
 MathFunctions.h:
 
-```
+```cgo
 #ifndef POWER_H
 #define POWER_H
 
@@ -366,7 +366,7 @@ tree
 
 main.c：
 
-```
+```cgo
 #include <stdio.h>
 #include <stdlib.h>
 #include <config.h>
@@ -466,9 +466,12 @@ LIBRARY_OUTPUT_DIR,BINARY_OUTPUT_DIR：库和可执行的最终存放目录
 ```
 
 2.`configure_file`命令用于加入一个配置头文件 config.h ，这个文件由 CMake 从 config.h.in 生成，通过这样的机制，将可以通过预定义一些参数和变量来控制代码的生成。
+
 3.`option`命令添加了一个 USE_MYMATH 选项，并且默认值为 ON。
+
 4.`include_directories ("${PROJECT_SOURCE_DIR}/math")`指定头文件路径。
-5. `set (EXTRA_LIBS ${EXTRA_LIBS} MathFunctions)`表示设置`${EXTRA_LIBS`}和`MathFunctions`两个作为数组设置进变量，为后面链接库做准备。
+
+5.`set (EXTRA_LIBS ${EXTRA_LIBS} MathFunctions)`表示设置`${EXTRA_LIBS`}和`MathFunctions`两个作为数组设置进变量，为后面链接库做准备。
 
 
 config.h.in：
@@ -530,3 +533,24 @@ Now we use the standard library.
 ### 安装和测试
 
 CMake 也可以指定安装规则，以及添加测试。这两个功能分别可以通过在产生 Makefile 后使用 make install 和 make test 来执行。在以前的 GNU Makefile 里，你可能需要为此编写 install 和 test 两个伪目标和相应的规则，但在 CMake 里，这样的工作同样只需要简单的调用几条命令。
+
+首先先在 math/CMakeLists.txt 文件里添加下面两行：
+
+```
+# 指定 MathFunctions 库的安装路径
+install (TARGETS MathFunctions DESTINATION bin)
+install (FILES MathFunctions.h DESTINATION include)
+```
+
+指明 MathFunctions 库的安装路径。之后同样修改根目录的 CMakeLists 文件，在末尾添加下面几行：
+
+```
+# 指定安装路径
+install (TARGETS main DESTINATION bin)
+install (FILES "${PROJECT_BINARY_DIR}/config.h"
+         DESTINATION include)
+```
+
+通过上面的定制，生成的 main 文件和 MathFunctions 函数库 libMathFunctions.o 文件将会被复制到 /usr/local/bin 中，而 MathFunctions.h 和生成的 config.h 文件则会被复制到 /usr/local/include 中。
+
+待写
