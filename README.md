@@ -129,7 +129,7 @@ cmake --version
 cd Demo1
 ```
 
-main.c:
+计算指数乘方的 main.c:
 
 ```
 #include <stdio.h>
@@ -194,3 +194,339 @@ cmake .
 make
 ./main 2 3
 ```
+
+### 多个源文件
+
+可以进入查看:
+
+```
+cd Demo2
+```
+
+把 `power`拆出来，变成两个源文件。
+
+```
+├── main.c
+├── MathFunctions.c
+└── MathFunctions.h
+```
+
+main.c:
+
+```
+#include <stdio.h>
+#include <stdlib.h>
+#include "MathFunctions.h"
+
+int main(int argc, char *argv[])
+{
+    if (argc < 3){
+        printf("Usage: %s base exponent \n", argv[0]);
+        return 1;
+    }
+    double base = atof(argv[1]);
+    int exponent = atoi(argv[2]);
+    double result = power(base, exponent);
+    printf("%g ^ %d is %g\n", base, exponent, result);
+    return 0;
+}
+```
+
+MathFunctions.h:
+
+```
+#ifndef POWER_H
+#define POWER_H
+
+extern double power(double base, int exponent);
+
+#endif
+```
+
+CMakeLists.txt:
+
+```
+# CMake 最低版本号要求
+cmake_minimum_required (VERSION 2.8)
+
+# 项目信息
+project (Demo2)
+
+# 查找目录下的所有源文件
+# 并将名称保存到 DIR_SRCS 变量
+aux_source_directory(. DIR_SRCS)
+
+# 指定生成目标
+add_executable(main ${DIR_SRCS})
+```
+
+
+本来多个源文件可以使用`add_executable(main main.c MathFunctions.c)`，但源文件一多就抓急，所以使用：
+
+```
+# 查找目录下的所有源文件
+# 并将名称保存到 DIR_SRCS 变量
+aux_source_directory(. DIR_SRCS)
+```
+
+执行：
+
+```
+cmake .
+make
+./main 2 3
+```
+
+### 多个目录多个源文件
+
+可以进入查看:
+
+```
+cd Demo3
+
+tree 
+
+├── CMakeLists.txt
+├── main.c
+└── math
+    ├── CMakeLists.txt
+    ├── MathFunctions.c
+    └── MathFunctions.h
+```
+
+需要分别在项目根目录 Demo3 和 math 目录里各编写一个 CMakeLists.txt 文件。为了方便，我们可以先将 math 目录里的文件编译成静态库再由 main 函数调用。
+
+根目录的 CMakeLists.txt:
+
+```
+# CMake 最低版本号要求
+cmake_minimum_required (VERSION 2.8)
+
+# 项目信息
+project (Demo3)
+
+# 查找目录下的所有源文件
+# 并将名称保存到 DIR_SRCS 变量
+aux_source_directory(. DIR_SRCS)
+
+# 添加 math 子目录
+add_subdirectory(math)
+
+# 指定生成目标
+add_executable(main ${DIR_SRCS})
+
+# 添加链接库
+target_link_libraries(main MathFunctions)
+```
+
+使用命令 `add_subdirectory` 指明本项目包含一个子目录 math，这样 math 目录下的 CMakeLists.txt 文件和源代码也会被处理。
+
+使用命令 `target_link_libraries` 指明可执行文件 main 需要连接一个名为 MathFunctions 的链接库 。
+
+根目录的 CMakeLists.txt:
+
+```
+# 查找当前目录下的所有源文件
+# 并将名称保存到 DIR_LIB_SRCS 变量
+aux_source_directory(. DIR_LIB_SRCS)
+
+# 指定生成 MathFunctions 链接库
+add_library (MathFunctions ${DIR_LIB_SRCS})
+```
+
+在该文件中使用命令 `add_library` 将 src 目录中的源文件编译为静态链接库：`libMathFunctions.a`。
+
+执行：
+
+```
+cmake .
+make
+./main 2 3
+```
+
+### 自定义编译选项
+
+CMake 允许为项目增加编译选项，从而可以根据用户的环境和需求选择最合适的编译方案。
+
+
+可以进入查看:
+
+```
+cd Demo4
+
+tree 
+├── CMakeLists.txt
+├── config.h.in
+├── main.c
+└── math
+    ├── CMakeLists.txt
+    ├── MathFunctions.c
+    └── MathFunctions.h
+```
+
+main.c：
+
+```
+#include <stdio.h>
+#include <stdlib.h>
+#include <config.h>
+
+#ifdef USE_MYMATH
+  #include <MathFunctions.h>
+#else
+  #include <math.h>
+#endif
+
+
+int main(int argc, char *argv[])
+{
+    if (argc < 3){
+        printf("Usage: %s base exponent \n", argv[0]);
+        return 1;
+    }
+
+    double base = atof(argv[1]);
+    int exponent = atoi(argv[2]);
+
+#ifdef USE_MYMATH
+    printf("Now we use our own Math library. \n");
+    double result = power(base, exponent);
+#else
+    printf("Now we use the standard library. \n");
+    double result = pow(base, exponent);
+#endif
+    
+    printf("%g ^ %d is %g\n", base, exponent, result);
+    return 0;
+}
+```
+
+我们定义了一个宏：`USE_MYMATH`来决定使用我们自己的库还是标准库的。
+
+这里引用了一个 `config.h` 文件，这个文件预定义了 USE_MYMATH 的值。但我们并不直接编写这个文件。
+
+根目录的 CMakeLists.txt:
+
+```
+# CMake 最低版本号要求
+cmake_minimum_required (VERSION 2.8)
+
+# 项目信息
+project (Demo4)
+
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+# 加入一个配置头文件，用于处理 CMake 对源码的设置
+configure_file (
+  "${PROJECT_SOURCE_DIR}/config.h.in"
+  "${PROJECT_BINARY_DIR}/config.h"
+  )
+
+# 是否使用自己的 MathFunctions 库
+option (USE_MYMATH
+	   "Use provided math implementation" ON)
+
+# 是否加入 MathFunctions 库
+if (USE_MYMATH)
+  include_directories ("${PROJECT_SOURCE_DIR}/math")
+  add_subdirectory (math)
+  set (EXTRA_LIBS ${EXTRA_LIBS} MathFunctions)
+else ()
+  set (EXTRA_LIBS ${EXTRA_LIBS} m)
+endif (USE_MYMATH)
+
+# 查找当前目录下的所有源文件
+# 并将名称保存到 DIR_SRCS 变量
+aux_source_directory(. DIR_SRCS)
+
+# 指定生成目标
+add_executable (main ${DIR_SRCS})
+
+# 添加链接库
+target_link_libraries (main  ${EXTRA_LIBS})
+
+```
+
+其中：
+
+1.`set(CMAKE_INCLUDE_CURRENT_DIR ON)`。自定义变量使用`SET(OBJ_NAME xxxx)`，使用时`${OBJ_NAME}`，
+这个`CMAKE_INCLUDE_CURRENT_DIR`参数默认OFF,当ON时表示`${CMAKE_CURRENT_SOURCE_DIR}` 和 `${CMAKE_CURRENT_BINARY_DIR}` 被加入到include path中，即头文件路径中。
+
+cmake的常用变量：
+
+```
+CMAKE_BINARY_DIR,PROJECT_BINARY_DIR,_BINARY_DIR：这三个变量内容一致，如果是内部编译，就指的是工程的顶级目录，如果是外部编译，指的就是工程编译发生的目录。
+CMAKE_SOURCE_DIR,PROJECT_SOURCE_DIR,_SOURCE_DIR：这三个变量内容一致，都指的是工程的顶级目录。
+CMAKE_CURRENT_BINARY_DIR：外部编译时，指的是target目录，内部编译时，指的是顶级目录
+CMAKE_CURRENT_SOURCE_DIR：CMakeList.txt所在的目录
+CMAKE_CURRENT_LIST_DIR：CMakeList.txt的完整路径
+CMAKE_CURRENT_LIST_LINE：当前所在的行
+CMAKE_MODULE_PATH：如果工程复杂，可能需要编写一些cmake模块，这里通过SET指定这个变量
+LIBRARY_OUTPUT_DIR,BINARY_OUTPUT_DIR：库和可执行的最终存放目录
+```
+
+2.`configure_file`命令用于加入一个配置头文件 config.h ，这个文件由 CMake 从 config.h.in 生成，通过这样的机制，将可以通过预定义一些参数和变量来控制代码的生成。
+3.`option`命令添加了一个 USE_MYMATH 选项，并且默认值为 ON。
+4.`include_directories ("${PROJECT_SOURCE_DIR}/math")`指定头文件路径。
+5. `set (EXTRA_LIBS ${EXTRA_LIBS} MathFunctions)`表示设置`${EXTRA_LIBS`}和`MathFunctions`两个作为数组设置进变量，为后面链接库做准备。
+
+
+config.h.in：
+
+```
+#cmakedefine USE_MYMATH
+```
+
+这样 CMake 会自动根据 CMakeLists 配置文件中的设置自动生成 config.h 文件。
+
+为了便于交互式的选择该变量的值，可以使用 ccmake 命令来编译：
+
+安装 ccmake 和创建编译目录：
+
+```
+sudo apt install cmake-curses-gui
+
+mkdir build
+```
+
+编译：
+
+```
+cd build
+
+ccmake ..
+
+EMPTY CACHE
+
+
+EMPTY CACHE:                                                                                                                                    
+Press [enter] to edit option                                                                                                 CMake Version 3.5.1
+Press [c] to configure
+Press [h] for help           Press [q] to quit without generating
+Press [t] to toggle advanced mode (Currently On)
+```
+
+按键盘的方向键可以在不同的选项窗口间跳转，按下 enter 键可以修改该选项。修改完成后可以按下 c 选项完成配置，之后再按 g 键确认生成 Makefile 。ccmake 的其他操作可以参考窗口下方给出的指令提示。
+
+```
+make 
+./main 2 3
+Now we use our own Math library. 
+2 ^ 3 is 8
+```
+
+我们再清除一下 `build`目录然后更改选项：
+
+```
+mkdir build
+cd build
+ccmake ..
+make 
+./main 2 3
+Now we use the standard library. 
+2 ^ 3 is 8
+```
+
+### 安装和测试
+
+CMake 也可以指定安装规则，以及添加测试。这两个功能分别可以通过在产生 Makefile 后使用 make install 和 make test 来执行。在以前的 GNU Makefile 里，你可能需要为此编写 install 和 test 两个伪目标和相应的规则，但在 CMake 里，这样的工作同样只需要简单的调用几条命令。
