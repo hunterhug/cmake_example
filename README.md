@@ -58,6 +58,12 @@ C 语言之所以命名为 C，是因为 C 语言源自 Ken Thompson 发明的 B
 
 标准： **C++98** -- C++03 -- **C++11** -- **C++14** -- **C++17** -- C++20
 
+STL（Standard Template Library，标准模板库)是惠普实验室开发的一系列软件的统称。它是由Alexander Stepanov、Meng Lee和David R Musser在惠普实验室工作时所开发出来的。STL的代码从广义上讲分为三类：algorithm（算法）、container（容器）和iterator（迭代器），几乎所有的代码都采用了模板类和模版函数的方式，这相比于传统的由函数和类组成的库来说提供了更好的代码重用机会。
+
+在C++标准中，STL被组织为下面的13个头文件：<algorithm>、<deque>、<functional>、<iterator>、<vector>、<list>、<map>、<memory>、<numeric>、<queue>、<set>、<stack>和<utility>。
+
+[Boost](https://www.boost.org) 库通过加入一些在实践中非常有用的函数对 C++ 标准进行了补充。 由于 Boost C++ 库是基于 C++ 标准的，所以它们是使用最先进的 C++ 来实现的。 它们是平台独立的，并由于有一个大型的开发人员社区，它可以被包括 Windows 和 Linux 在内的许多操作系统所支持。 Boost库由C++标准委员会库工作组成员发起，其中有些内容有望成为下一代C++标准库内容。在C++社区中影响甚大，是不折不扣的“准”标准库。Boost由于其对跨平台的强调，对标准C++的强调，与编写平台无关。大部分boost库功能的使用只需包括相应头文件即可，少数（如正则表达式库，文件系统库等）需要链接库。可以说，Boost库是为C++语言标准库提供扩展的一些C++程序库的总称。C++11, C++14很多特性都是从boost库来的，如果所在的公司使用的编译器可以支持C++11或以上那么可以先用标准的来就行，不够再去翻翻boost。
+
 
 # 正文
 
