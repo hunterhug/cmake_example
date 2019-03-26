@@ -61,7 +61,7 @@ C 语言之所以命名为 C，是因为 C 语言源自 Ken Thompson 发明的 B
 
 # 正文
 
-编译程序需要使用各种参数，所以很麻烦，出现了不同的make构建工具，这些工具遵循不同的规范和标准，所执行的Makefile格式也不同，但如果想让软件跨平台，必须要保证能够在不同平台编译，但使用这些make工具就得为每一种标准写一次Makefile，因此CMake应运而生。CMake首先允许开发者编写一种与平台无关的CMakeList.txt来定制整个编译流程，然后再根据目标用户的平台进一步生成所需的本地化Makefile和工程文件，如Unix的Makefile或Windows的Visual Studio
+编译程序需要使用各种参数，所以很麻烦，出现了不同的make构建工具，这些工具遵循不同的规范和标准，所执行的Makefile格式也不同，但如果想让软件跨平台，必须要保证能够在不同平台编译，但使用这些make工具就得为每一种标准写一次Makefile，因此CMake应运而生。CMake首先允许开发者编写一种与平台无关的CMakeList.txt来定制整个编译流程，然后再根据目标用户的平台进一步生成所需的本地化Makefile和工程文件，如Unix的Makefile或Windows的Visual Studio。
 
 ## 程序编译
 
@@ -69,17 +69,43 @@ C 语言之所以命名为 C，是因为 C 语言源自 Ken Thompson 发明的 B
 
 下面是一个本人工作中遇到的经典编译：
 
-```
-gcc read.c -o read.exe -g "common/common.c" "common/ss_help.c" "lib/base64/base64.c" "lib/cJSON/cJSON.c" \
+```sh
+gcc read.c -o read.exe -g -Wall "common/common.c" "common/ss_help.c" "lib/base64/base64.c" "lib/cJSON/cJSON.c" \
 -I"../include" -I"./common" -I"./lib" -I"./lib/base64" -I"./lib/cJSON"  \
--L"./" -L"./../lib64" -lslm_runtime -lslm_control -lss_user_login  -lm -ldl -lpthread \
--Wl,-rpath=./ -g
+-lslm_runtime -lslm_control -lss_user_login  -lm -ldl -lpthread \
+-L"./" -L"./../lib64" \
+-Wl,-rpath="./" -Wl,-rpath="./../lib64"
 ```
 
 介绍如下：
 
 ```
-
+gcc     编译工具
+read.c  主函数文件
+-o read.exe     编译成read.exe二进制
+-g              可以使用gdb调试
+-Wall           生成所有警告信息
+"common/common.c" "common/ss_help.c" "lib/base64/base64.c" "lib/cJSON/cJSON.c"  一起编译的其他C源文件
+-I"../include" -I"./common" -I"./lib" -I"./lib/base64" -I"./lib/cJSON"          依赖的头文件所在目录
+-lslm_runtime -lslm_control -lss_user_login  -lm -ldl -lpthread                 链接的动态库 libslm_runtime等，可用ldd read.exe查看
+-L"./" -L"./../lib64"   放在/lib和/usr/lib和/usr/local/lib里的库直接用-l参数就能链接，否则要加上库文件所在的目录名
+-Wl,-rpath=./           编译时指定的 -L  的目录，只是在程序链接成可执行文件时使用的。程序执行时动态链接库加载不到动态链接库，所以要加上。或者加上环境变量也可以：export LD_LIBRARY_PATH
 ```
 
+是有点麻烦，所以使用构建工具。
+
+## Cmake
+
 参考: [Cmake](https://www.hahack.com/codes/cmake)
+
+你或许听过好几种 Make 工具，例如 GNU Make ，QT 的 qmake ，微软的 MS nmake，BSD Make（pmake），Makepp，等等。这些 Make 工具遵循着不同的规范和标准，所执行的 Makefile 格式也千差万别。这样就带来了一个严峻的问题：如果软件想跨平台，必须要保证能够在不同平台编译。而如果使用上面的 Make 工具，就得为每一种标准写一次 Makefile ，这将是一件让人抓狂的工作。
+
+CMake CMake附图 1 CMake就是针对上面问题所设计的工具：它首先允许开发者编写一种平台无关的 CMakeList.txt 文件来定制整个编译流程，然后再根据目标用户的平台进一步生成所需的本地化 Makefile 和工程文件，如 Unix 的 Makefile 或 Windows 的 Visual Studio 工程。从而做到“Write once, run everywhere”。显然，CMake 是一个比上述几种 make 更高级的编译配置工具。一些使用 CMake 作为项目架构系统的知名开源项目有 VTK、ITK、KDE、OpenCV、OSG 等。
+
+在 linux 平台下使用 CMake 生成 Makefile 并编译的流程如下：
+
+1. 编写 CMake 配置文件 CMakeLists.txt 。
+2. 执行命令 cmake PATH 或者 ccmake PATH 生成 Makefile。ccmake 和 cmake 的区别在于前者提供了一个交互式的界面。其中， PATH 是 CMakeLists.txt 所在的目录。
+3. 使用 make 命令进行编译。
+
+### 单个源文件
