@@ -102,7 +102,7 @@ read.c  主函数文件
 
 ## Cmake
 
-参考: [Cmake](https://www.hahack.com/codes/cmake)
+参考: [Cmake](https://www.hahack.com/codes/cmake)，以下所有例子都是转载的网络并自己实验一遍的。
 
 你或许听过好几种 Make 工具，例如 GNU Make ，QT 的 qmake ，微软的 MS nmake，BSD Make（pmake），Makepp，等等。这些 Make 工具遵循着不同的规范和标准，所执行的 Makefile 格式也千差万别。这样就带来了一个严峻的问题：如果软件想跨平台，必须要保证能够在不同平台编译。而如果使用上面的 Make 工具，就得为每一种标准写一次 Makefile ，这将是一件让人抓狂的工作。
 
@@ -114,10 +114,83 @@ CMake就是针对上面问题所设计的工具：它首先允许开发者编写
 2. 执行命令 cmake PATH 或者 ccmake PATH 生成 Makefile。ccmake 和 cmake 的区别在于前者提供了一个交互式的界面。其中， PATH 是 CMakeLists.txt 所在的目录。
 3. 使用 make 命令进行编译。
 
+Debian/Ubuntu等系列apt套件安装：
+
+```
+sudo apt install cmake
+cmake --version
+```
+
 ### 单个源文件
 
 可以进入查看:
 
 ```
-cd demo1
+cd Demo1
+```
+
+main.c:
+
+```
+#include <stdio.h>
+#include <stdlib.h>
+/**
+ * power - Calculate the power of number.
+ * @param base: Base value.
+ * @param exponent: Exponent value.
+ *
+ * @return base raised to the power exponent.
+ */
+double power(double base, int exponent)
+{
+    int result = base;
+    int i;
+
+    if (exponent == 0) {
+        return 1;
+    }
+
+    for(i = 1; i < exponent; ++i){
+        result = result * base;
+    }
+    return result;
+}
+int main(int argc, char *argv[])
+{
+    if (argc < 3){
+        printf("Usage: %s base exponent \n", argv[0]);
+        return 1;
+    }
+    double base = atof(argv[1]);
+    int exponent = atoi(argv[2]);
+    double result = power(base, exponent);
+    printf("%g ^ %d is %g\n", base, exponent, result);
+    return 0;
+}
+```
+
+CMakeLists.txt:
+
+```
+# CMake 最低版本号要求
+cmake_minimum_required (VERSION 2.8)
+# 项目信息
+project (Demo1)
+# 指定生成目标
+add_executable(main main.c)
+```
+
+上面的 CMakeLists.txt 文件，依次出现了几个命令：
+
+1. cmake_minimum_required：指定运行此配置文件所需的 CMake 的最低版本；
+2. project：参数值是 Demo1，该命令表示项目的名称是 Demo1 。
+3. add_executable： 将名为 main.c 的源文件编译成一个名称为 main 的可执行文件。
+
+
+执行：
+
+```
+cmake .
+make
+./main 2 3
 ```
