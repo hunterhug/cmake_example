@@ -534,7 +534,14 @@ Now we use the standard library.
 
 CMake 也可以指定安装规则，以及添加测试。这两个功能分别可以通过在产生 Makefile 后使用 make install 和 make test 来执行。在以前的 GNU Makefile 里，你可能需要为此编写 install 和 test 两个伪目标和相应的规则，但在 CMake 里，这样的工作同样只需要简单的调用几条命令。
 
-首先先在 math/CMakeLists.txt 文件里添加下面两行：
+
+可以进入查看:
+
+```
+cd Demo5
+```
+
+首先先在 `math/CMakeLists.txt` 文件里添加下面两行：
 
 ```
 # 指定 MathFunctions 库的安装路径
@@ -542,7 +549,9 @@ install (TARGETS MathFunctions DESTINATION bin)
 install (FILES MathFunctions.h DESTINATION include)
 ```
 
-指明 MathFunctions 库的安装路径。之后同样修改根目录的 CMakeLists 文件，在末尾添加下面几行：
+指明 MathFunctions 库的安装路径。将目标`TARGETS`静态库`libMathFunctions`安装在`bin`文件夹中，而将文件`FILES`头文件`MathFunctions.h`安装在`include`文件夹中。
+
+之后同样修改根目录的 CMakeLists 文件，在末尾添加下面几行：
 
 ```
 # 指定安装路径
@@ -553,4 +562,511 @@ install (FILES "${PROJECT_BINARY_DIR}/config.h"
 
 通过上面的定制，生成的 main 文件和 MathFunctions 函数库 libMathFunctions.o 文件将会被复制到 /usr/local/bin 中，而 MathFunctions.h 和生成的 config.h 文件则会被复制到 /usr/local/include 中。
 
-待写
+编译：
+
+```
+mkdir  build
+cd build
+ccmake ..
+make
+
+
+sudo make install
+[ 50%] Built target MathFunctions
+[100%] Built target main
+Install the project...
+-- Install configuration: ""
+-- Installing: /usr/local/bin/main
+-- Installing: /usr/local/include/config.h
+-- Installing: /usr/local/lib/libMathFunctions.a
+-- Installing: /usr/local/include/MathFunctions.h
+
+main 2 3
+Now we use our own Math library. 
+2 ^ 3 is 8
+
+```
+
+测试完毕我们清除 install 的文件：
+
+```
+sudo rm -rf /usr/local/bin/main 
+sudo rm -rf /usr/local/include/config.h 
+sudo rm -rf /usr/local/lib/libMathFunctions.a 
+sudo rm -rf /usr/local/include/MathFunctions.h
+```
+
+### 为工程添加测试
+    
+添加测试同样很简单。CMake 提供了一个称为 CTest 的测试工具。我们要做的只是在项目根目录的 CMakeLists 文件中调用一系列的 add_test 命令。
+
+仍然是 Demo5。
+
+根目录的 CMakeLists 文件添加：
+
+```
+# 启用测试
+enable_testing()
+
+# 测试程序是否成功运行
+add_test (test_run main 5 2)
+
+# 测试帮助信息是否可以正常提示
+add_test (test_usage main)
+set_tests_properties (test_usage
+  PROPERTIES PASS_REGULAR_EXPRESSION "Usage: .* base exponent")
+  
+# 测试 5 的平方
+add_test (test_5_2 main 5 2)
+set_tests_properties (test_5_2
+ PROPERTIES PASS_REGULAR_EXPRESSION "is 25")
+ 
+# 测试 10 的 5 次方
+add_test (test_10_5 main 10 5)
+set_tests_properties (test_10_5
+ PROPERTIES PASS_REGULAR_EXPRESSION "is 100000")
+ 
+# 测试 2 的 10 次方
+add_test (test_2_10 main 2 10)
+set_tests_properties (test_2_10
+ PROPERTIES PASS_REGULAR_EXPRESSION "is 1024")
+```
+
+上面的代码包含了四个测试。第一个测试 test_run 用来测试程序是否成功运行并返回 0 值。
+
+剩下的三个测试分别用来测试 5 的 平方、10 的 5 次方、2 的 10 次方是否都能得到正确的结果。其中 `PASS_REGULAR_EXPRESSION` 用来测试输出是否包含后面跟着的字符串。
+
+```
+add_test (test_5_2 main 5 2)
+set_tests_properties (test_5_2
+ PROPERTIES PASS_REGULAR_EXPRESSION "is 25")
+ ```
+ 
+加了一个叫`test_5_2`名字的测试测试，检查输出是否是`is 25`。
+ 
+执行测试：
+ 
+```
+make test
+Running tests...
+Test project /opt/cmake_example/Demo5/build
+    Start 1: test_run
+1/5 Test #1: test_run .........................   Passed    0.00 sec
+    Start 2: test_usage
+2/5 Test #2: test_usage .......................   Passed    0.00 sec
+    Start 3: test_5_2
+3/5 Test #3: test_5_2 .........................   Passed    0.00 sec
+    Start 4: test_10_5
+4/5 Test #4: test_10_5 ........................   Passed    0.00 sec
+    Start 5: test_2_10
+5/5 Test #5: test_2_10 ........................   Passed    0.00 sec
+```
+
+如果有很多的测试要写，很麻烦，所以可以定义一个重复利用的宏：
+
+```
+# 定义一个宏，用来简化测试工作
+macro (do_test arg1 arg2 result)
+  add_test (test_${arg1}_${arg2} main ${arg1} ${arg2})
+  set_tests_properties (test_${arg1}_${arg2}
+    PROPERTIES PASS_REGULAR_EXPRESSION ${result})
+endmacro (do_test)
+
+# 利用 do_test 宏，测试一系列数据
+do_test (5 2 "is 25")
+do_test (10 5 "is 100000")
+do_test (2 10 "is 1024")
+```
+
+产生的效果是一样的。
+
+
+### 支持 gdb 调试
+
+让 CMake 支持 gdb 的设置也很容易，只需要指定 Debug 模式下开启 -g 选项：
+
+```
+set(CMAKE_BUILD_TYPE "Debug")
+set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
+set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
+```
+
+执行并调试：
+
+```
+ccmake .
+make
+
+
+gdb main
+
+(gdb) r 2 3
+Starting program: /opt/cmake_example/Demo5/build/main 2 3
+Now we use our own Math library. 
+2 ^ 3 is 8
+
+(gdb) l
+1       #include <stdio.h>
+2       #include <stdlib.h>
+3       #include <config.h>
+4       
+5       #ifdef USE_MYMATH
+6         #include <MathFunctions.h>
+7       #else
+8         #include <math.h>
+9       #endif
+10      
+
+(gdb) b 18
+Breakpoint 1 at 0x4008ae: file /opt/cmake_example/Demo5/main.c, line 18.
+(gdb) r 2 3
+Starting program: /opt/cmake_example/Demo5/build/main 2 3
+
+Breakpoint 1, main (argc=3, argv=0x7fffffffdc48) at /opt/cmake_example/Demo5/main.c:18
+18          double base = atof(argv[1]);
+(gdb) c
+Continuing.
+Now we use our own Math library. 
+2 ^ 3 is 8
+[Inferior 1 (process 3119) exited normally]
+
+```
+
+gdb调试指令一条龙：
+
+1. l列出代码
+2. b设置断点
+3. r运行程序
+4. s进入断点内部
+5. c断点继续
+6. q退出
+
+
+### 添加环境检查
+
+有时候可能要对系统环境做点检查，例如要使用一个平台相关的特性的时候。在这个例子中，我们检查系统是否自带 pow 函数。如果带有 pow 函数，就使用它；否则使用我们定义的 power 函数。
+
+可以进入查看:
+
+```
+cd Demo6
+```
+
+根目录的 CMakeLists:
+
+```
+# CMake 最低版本号要求
+cmake_minimum_required (VERSION 2.8)
+
+# 项目信息
+project (Demo6)
+
+set (CMAKE_INCLUDE_CURRENT_DIR ON)
+
+# 检查系统是否支持 pow 函数
+message ("doing check pow")
+include (${CMAKE_ROOT}/Modules/CheckFunctionExists.cmake)
+
+check_function_exists (pow HAVE_POW)
+check_function_exists (printf HAVE_XXXX)
+
+# 加入一个配置头文件，用于处理 CMake 对源码的设置
+configure_file (
+  "${PROJECT_SOURCE_DIR}/config.h.in"
+  "${PROJECT_BINARY_DIR}/config.h"
+  )
+
+# 是否加入 MathFunctions 库
+if (NOT HAVE_POW)
+  include_directories ("${PROJECT_SOURCE_DIR}/math")
+  add_subdirectory (math)
+  set (EXTRA_LIBS ${EXTRA_LIBS} MathFunctions)
+endif (NOT HAVE_POW)
+
+# 查找当前目录下的所有源文件
+# 并将名称保存到 DIR_SRCS 变量
+aux_source_directory(. DIR_SRCS)
+
+# 指定生成目标
+add_executable(main ${DIR_SRCS})
+target_link_libraries (main  ${EXTRA_LIBS})
+
+# 指定安装路径
+install (TARGETS main DESTINATION bin)
+install (FILES "${PROJECT_BINARY_DIR}/config.h"
+         DESTINATION include)
+
+# 启用测试
+enable_testing()
+
+# 测试程序是否成功运行
+add_test (test_run main 5 2)
+
+# 测试帮助信息是否可以正常提示
+add_test (test_usage main)
+set_tests_properties (test_usage
+  PROPERTIES PASS_REGULAR_EXPRESSION "Usage: .* base exponent")
+
+# 定义一个宏，用来简化测试工作
+macro (do_test arg1 arg2 result)
+  add_test (test_${arg1}_${arg2} main ${arg1} ${arg2})
+  set_tests_properties (test_${arg1}_${arg2}
+    PROPERTIES PASS_REGULAR_EXPRESSION ${result})
+endmacro (do_test)
+ 
+# 利用 do_test 宏，测试一系列数据
+do_test (5 2 "is 25")
+do_test (10 5 "is 100000")
+do_test (2 10 "is 1024")
+```
+
+
+其中添加 CheckFunctionExists.cmake 宏，并调用 check_function_exists 命令测试链接器是否能够在链接阶段找到 pow 函数：
+
+```
+# 检查系统是否支持 pow 函数
+message ("doing check pow")
+include (${CMAKE_ROOT}/Modules/CheckFunctionExists.cmake)
+
+check_function_exists (pow HAVE_POW)
+check_function_exists (printf HAVE_XXXX)
+```
+
+如果存在，宏 HAVE_POW 将会被设置。
+
+执行：
+
+```
+mkdir build
+cd build
+cmake ..
+doing check pow
+-- Looking for pow
+-- Looking for pow - not found
+-- Looking for printf
+-- Looking for printf - found
+
+make
+```
+
+为什么 pow 找不到呢，而 printf 找得到，因为数学函数位于libm.so库文件中（这些库文件通常位于/lib目录下），-lm选项告诉编译器，我们程序中用到的数学函数要到这个库文件里找。printf位于libc.so库文件中，使用libc.so中的库函数在编译时不需要加-lc选项，当然加了也不算错，因为这个选项是gcc的默认选项。
+
+### 添加版本号
+
+可以进入查看:
+
+```
+cd Demo7
+```
+
+给项目添加和维护版本号是一个好习惯，这样有利于用户了解每个版本的维护情况，并及时了解当前所用的版本是否过时，或是否可能出现不兼容的情况。
+
+首先修改顶层 CMakeLists 文件，在 project 命令之后加入如下两行：
+
+
+```
+set (Demo_VERSION_MAJOR 1)
+set (Demo_VERSION_MINOR 0)
+```
+
+分别指定当前的项目的主版本号和副版本号。
+
+之后，为了在代码中获取版本信息，我们可以修改 config.h.in 文件，添加两个预定义变量：
+
+```
+// the configured options and settings for Tutorial
+#define Demo_VERSION_MAJOR @Demo_VERSION_MAJOR@
+#define Demo_VERSION_MINOR @Demo_VERSION_MINOR@
+```
+
+此时 main.c:
+
+```cgo
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include "config.h"
+#include "math/MathFunctions.h"
+int main(int argc, char *argv[])
+{
+    if (argc < 3){
+        // print version info
+        printf("%s Version %d.%d\n",
+            argv[0],
+            Demo_VERSION_MAJOR,
+            Demo_VERSION_MINOR);
+        printf("Usage: %s base exponent \n", argv[0]);
+        return 1;
+    }
+    double base = atof(argv[1]);
+    int exponent = atoi(argv[2]);
+    
+#if defined (HAVE_POW)
+    printf("Now we use the standard library. \n");
+    double result = pow(base, exponent);
+#else
+    printf("Now we use our own Math library. \n");
+    double result = power(base, exponent);
+#endif
+    
+    printf("%g ^ %d is %g\n", base, exponent, result);
+    return 0;
+}
+```
+
+编译后可以打印版本号:
+
+```
+mkdir build
+cd build 
+cmake ..
+make 
+./main
+./main Version 1.0
+Usage: ./main base exponent 
+
+```
+
+### 生成安装包
+
+我们要学习如何配置生成各种平台上的安装包，包括二进制安装包和源码安装包。为了完成这个任务，我们需要用到 CPack ，它同样也是由 CMake 提供的一个工具，专门用于打包。
+
+这是最重要的部分，因为我们工程完成后需要交付或者部署。
+
+可以进入查看:
+
+```
+cd Demo8
+```
+
+我们在顶层 CMakeLists 文件最后添加：
+
+```
+# 构建一个 CPack 安装包
+include (InstallRequiredSystemLibraries)
+set (CPACK_RESOURCE_FILE_LICENSE
+  "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
+set (CPACK_PACKAGE_VERSION_MAJOR "${Demo_VERSION_MAJOR}")
+set (CPACK_PACKAGE_VERSION_MINOR "${Demo_VERSION_MINOR}")
+include (CPack)
+```
+
+
+1. 导入 InstallRequiredSystemLibraries 模块，以便之后导入 CPack 模块；
+2. 设置一些 CPack 相关变量，包括版权信息和版本信息，其中版本信息用了上一节定义的版本号；
+3. 导入 CPack 模块。
+
+执行：
+
+```
+mkdir build
+cd build
+cmake ..
+cpack -C CPackConfig.cmake
+
+cpack -C CPackConfig.cmake
+CPack: Create package using STGZ
+CPack: Install projects
+CPack: - Run preinstall target for: Demo8
+CPack: - Install project: Demo8
+CPack: Create package
+CPack: - package: /opt/cmake_example/Demo8/build/Demo8-1.0.1-Linux.sh generated.
+CPack: Create package using TGZ
+CPack: Install projects
+CPack: - Run preinstall target for: Demo8
+CPack: - Install project: Demo8
+CPack: Create package
+CPack: - package: /opt/cmake_example/Demo8/build/Demo8-1.0.1-Linux.tar.gz generated.
+CPack: Create package using TZ
+CPack: Install projects
+CPack: - Run preinstall target for: Demo8
+CPack: - Install project: Demo8
+CPack: Create package
+CPack: - package: /opt/cmake_example/Demo8/build/Demo8-1.0.1-Linux.tar.Z generated.
+```
+
+执行 cpack -C CPackConfig.cmake 命令后生成三个二进制包：
+
+```
+Demo8-1.0.1-Linux.sh  Demo8-1.0.1-Linux.tar.gz  Demo8-1.0.1-Linux.tar.Z
+```
+
+这 3 个二进制包文件所包含的内容是完全相同的。我们可以执行其中一个 Demo8-1.0.1-Linux.sh  。此时会出现一个由 CPack 自动生成的交互式安装界面：
+
+```
+./Demo8-1.0.1-Linux.sh
+
+Do you accept the license? [yN]: 
+y
+By default the Demo8 will be installed in:
+  "/opt/cmake_example/Demo8/build/Demo8-1.0.1-Linux"
+Do you want to include the subdirectory Demo8-1.0.1-Linux?
+Saying no will install in: "/opt/cmake_example/Demo8/build" [Yn]: 
+y
+```
+
+
+安装好了：
+
+```
+cd Demo8-1.0.1-Linux/bin
+./main
+```
+
+[qmake转cmake](https://gitlab.kitware.com/cmake/community/wikis/contrib/scripts/ConvertFromQmake)
+
+
+### 生产库实例
+
+可以参考 [OpenSSL with CMake build system ](https://github.com/pol51/OpenSSL-CMake)
+
+顶层 CMakeLists 文件：
+
+```
+project( openssl )
+cmake_minimum_required( VERSION 2.8.3 )
+
+set(BUILD_OBJECT_LIBRARY_ONLY OFF BOOL)
+
+include_directories ( BEFORE SYSTEM ${CMAKE_CURRENT_BINARY_DIR}/crypto ${CMAKE_CURRENT_BINARY_DIR}/ssl crypto . )
+
+add_definitions( -DOPENSSL_NO_ASM )
+
+if( WIN32 AND NOT CYGWIN )
+  add_definitions( -DOPENSSL_SYSNAME_WIN32 )
+  add_definitions( -DWIN32_LEAN_AND_MEAN )
+endif ( )
+
+if( MINGW )
+  set( CMAKE_SHARED_LINKER_FLAGS "-Wl,--export-all" )
+endif()
+
+add_subdirectory( crypto )
+add_subdirectory( ssl )
+if( BUILD_OBJECT_LIBRARY_ONLY)
+  file( COPY e_os2.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR} )
+else()
+  add_subdirectory( apps )
+
+  install( FILES e_os2.h DESTINATION include/openssl )
+
+  install( FILES tools/c_hash tools/c_info tools/c_issuer tools/c_name tools/c_rehash
+      FAQ LICENSE PROBLEMS README README.ASN1 README.ENGINE
+      DESTINATION share/openssl )
+
+  install( DIRECTORY doc DESTINATION ./ )
+
+  install( FILES e_os2.h DESTINATION include/openssl )
+
+  # Generate the package target
+  set( CPACK_GENERATOR ZIP TGZ )
+  set( CPACK_PACKAGE_NAME "openssl-cmake" )
+  set( CPACK_PACKAGE_VERSION_MAJOR 1  )
+  set( CPACK_PACKAGE_VERSION_MINOR 0  )
+  set( CPACK_PACKAGE_VERSION_PATCH 1u )
+
+  include( CPack )
+endif()
+```
+
+更多参考: [https://cmake.org/cmake-tutorial/](https://cmake.org/cmake-tutorial/)
