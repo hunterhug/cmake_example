@@ -1070,3 +1070,18 @@ endif()
 ```
 
 更多参考: [https://cmake.org/cmake-tutorial/](https://cmake.org/cmake-tutorial/)
+
+
+### 补充 
+
+readelf命令，一般用于查看ELF格式的文件信息，常见的文件如在Linux上的可执行文件，动态库(*.so)或者静态库(*.a) 等包含ELF格式的文件。
+
+```
+readelf -dl main
+```
+
+动态库路径设置：
+
+```
+export LD_LIBRARY_PATH=LD_LIBRARY_PATH:/XXX
+```
