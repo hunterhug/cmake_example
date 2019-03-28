@@ -69,7 +69,7 @@ STL（Standard Template Library，标准模板库)是惠普实验室开发的一
 
 编译程序需要使用各种参数，所以很麻烦，出现了不同的make构建工具，这些工具遵循不同的规范和标准，所执行的Makefile格式也不同，但如果想让软件跨平台，必须要保证能够在不同平台编译，但使用这些make工具就得为每一种标准写一次Makefile，因此CMake应运而生。CMake首先允许开发者编写一种与平台无关的CMakeList.txt来定制整个编译流程，然后再根据目标用户的平台进一步生成所需的本地化Makefile和工程文件，如Unix的Makefile或Windows的Visual Studio。
 
-## 程序编译
+## 温习基本知识
 
 一般程序写完后需要编译成二进制机器码，然后再调用执行。
 
@@ -98,7 +98,251 @@ read.c  主函数文件
 -Wl,-rpath=./           编译时指定的 -L  的目录，只是在程序链接成可执行文件时使用的。程序执行时动态链接库加载不到动态链接库，所以要加上。或者加上环境变量也可以：export LD_LIBRARY_PATH
 ```
 
-是有点麻烦，因此使用构建工具很有必要。
+是有点麻烦，因此使用构建工具很有必要。我们先重温一下编译过程，再学习构建工具。
+
+### C语言编译过程
+
+*.c文件 -- 预处理 -- 编译 -- 汇编 -- 链接 -- 可执行函数
+
+预处理器->编译器->汇编器->链接器
+
+1.由.c文件到.i文件，这个过程叫预处理
+2.由.i文件到.s文件，这个过程叫编译
+3.由.s文件到.o文件，这个过程叫汇编
+4..o文件到可执行文件，这个过程叫链接
+
+查看：
+
+```
+cd Demo0
+```
+
+1.编辑 hello.c:
+
+```cgo
+#include <stdio.h>
+#include <stdlib.h>
+int main()
+{
+        printf("hello world!\n");
+        return 0;
+}
+```
+
+2.预处理过程实质上是处理“#”，将#include包含的头文件直接拷贝到hell.c当中；将#define定义的宏进行替换，同时将代码中没用的注释部分删除等
+
+具体做的事儿如下：
+
+（1）将所有的#define删除，并且展开所有的宏定义。说白了就是字符替换
+
+（2）处理所有的条件编译指令，#ifdef #ifndef #endif等，就是带#的那些
+
+（3）处理#include，将#include指向的文件插入到该行处
+
+（4）删除所有注释
+
+（5）添加行号和文件标示，这样的在调试和编译出错的时候才知道是是哪个文件的哪一行
+
+（6）保留#pragma编译器指令，因为编译器需要使用它们。
+
+预编译：
+
+```
+gcc -E hello.c -o a.i
+
+cat a.i
+```
+
+3.编译的过程实质上是把高级语言翻译成机器语言的过程，即对a.c做：
+  
+（1）词法分析，
+  
+（2）语法分析
+  
+（3）语义分析
+  
+（4）优化后生成相应的汇编代码
+  
+从 高级语言->汇编语言->机器语言（二进制）
+
+编译器生成汇编代码:
+
+```
+gcc -S a.i -o a.s
+
+cat a.s
+```
+
+汇编器生成机器代码：
+
+```
+gcc -c hello.c -o a.o
+```
+
+4.链接器将翻译成的二进制与需要用到库绑定在一块。它将所有二进制形式的目标文件和系统组件组合成一个可执行文件:
+
+```
+gcc a.o -o a
+
+./a 
+hello world!
+```
+
+更直接生成不同环节的文件，省缺中间环节：
+
+```
+# 预处理
+gcc -E hello.c -o a.i
+# 编译
+gcc -S hello.c -o a.s
+# 汇编
+gcc -c hello.c -o a.o
+# 链接
+gcc hello.c -o a
+```
+
+### 静态库和动态库
+
+根据链接方式的不同，链接过程可以分为：
+
+1. 静态链接：目标文件直接进入可执行文件
+2. 动态链接：在程序启动后才动态加载目标文件
+
+文件夹下有三个文件：
+
+```
+cd link
+tree
+├── add.c
+├── add.h
+└── main.c
+```
+
+add.h:
+
+```cgo
+#ifndef __ADD_H__
+#define __ADD_H_
+
+int add(int a, int b);
+
+#endif
+```
+
+add.c:
+
+```cgo
+#include "add.h"
+int add(int a, int b)
+{
+        return a+b;
+}
+```
+
+main.c:
+
+```cgo
+#include  "add.h"
+#include  "stdio.h"
+
+int main()
+{
+        int sum = add(5,6);
+        printf("%d",sum);
+        return 0;
+}
+```
+
+我们可以将 add.c 封装成静态库和动态库来使用。
+
+#### 静态库
+
+首先将 add.c 编译成目标文件:
+
+```
+gcc -c add.c -o add.o
+```
+
+然后根据目标文件生成静态库:
+
+```
+ar -cr libadd.a add.o
+```
+
+ar命令可以用来创建、修改库，也可以从库中提出单个模块
+
+1. -c 选项表示 创建一个库。不管库是否存在，都将创建
+2. -r 选项表示 将模块插入库，如果库中有对应的模块，那么进行更新
+
+如果把多个 .o 文件插入库 .a 里,只需要在后面用空格分开写出来，格式：
+
+```
+ar -cr 静态库libname.a  name1.o name2.o
+```
+
+生成静态库 l ibadd.a 后，编译 main.c 连接静态库生成可执行文件main:
+
+```
+gcc main.c -o main -I./ -L./ -ladd
+
+./main
+```
+
+1. -I选项表示头文件路径
+2. -L表示静态库或者动态库的路径
+
+#### 动态库
+
+动态库需要使用 -shared 选项以及 -fPIC 选项
+
+```
+gcc -c -fPIC add.c -o a.o
+```
+
+-fPIC表示代码是和地址无关的，不需要被不同模块重定位
+
+然后根据目标文件生成动态库.so文件
+
+```
+gcc -shared -o libadd.so a.o
+```
+
+-shared 选项表示生成的是.so动态库文件
+
+
+上面的步骤可以直接写成:
+
+```
+gcc -shared -fPIC main.c -o libadd.so
+```
+
+链接动态库:
+
+```
+gcc main.c -o main -I./ -L./ -ladd
+```
+
+运行：
+
+```
+./main
+./main: error while loading shared libraries: libadd.so: cannot open shared object file: No such file or directory
+```
+
+
+我们现在有几种方式配置动态库的方法：
+
+```
+export LD_LIBRARY_PATH="./:$LD_LIBRARY_PATH"
+./main
+```
+
+这种方式将动态库路径配置到LD_LIBRARY_PATH,只是暂时生效。
+
+或者使用 ldconfig 机制（需 root 权限）：
+
+1. 首先，在 /etc/ld.so.conf.d/ 下创建一个 .conf 文件，如 libadd.conf ，内容为共享库所在目录的绝对路径
+2. 然后，运行 ldconfig
 
 ## Cmake
 
@@ -1084,4 +1328,5 @@ readelf -dl main
 
 ```
 export LD_LIBRARY_PATH=LD_LIBRARY_PATH:/XXX
+./main
 ```

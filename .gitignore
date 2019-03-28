@@ -7,3 +7,6 @@ cmake_install.cmake
 *.a
 config.h
 build/
+*.s
+*.i
+*.o
